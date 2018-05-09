@@ -14,6 +14,9 @@ In production, it uses:
 ## Installation
 
 ```bash
+# Install the Serverless CLI
+npm install -g serverless
+
 # Clone the repo
 git clone https://github.com/mcnamee/serverless-jwt-auth.git serverless-jwt-auth
 
