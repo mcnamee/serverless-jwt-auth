@@ -18,9 +18,9 @@ In production, it uses:
 git clone https://github.com/mcnamee/serverless-jwt-auth.git serverless-jwt-auth
 
 # Install dependencies
-cd serverless-api-auth && npm install
+cd serverless-jwt-auth && npm install
 
-# Add your secrets (and update the DB)
+# Add your secrets (and update the DB connection)
 cp secrets.example.json secrets.json
 ```
 
