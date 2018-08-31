@@ -17,10 +17,10 @@ plugins:
 
 functions:
   verify-token:
-    handler: auth/VerifyToken.auth
+    handler: app/Middleware/VerifyToken.auth
 
   login:
-    handler: auth/AuthHandler.login
+    handler: app/Controllers/Users.login
     events:
       - http:
           path: login
@@ -28,7 +28,7 @@ functions:
           cors: true
 
   register:
-    handler: auth/AuthHandler.register
+    handler: app/Controllers/Users.register
     events:
       - http:
           path: register
@@ -36,7 +36,7 @@ functions:
           cors: true
 
   me:
-    handler: auth/AuthHandler.me
+    handler: app/Controllers/Users.me
     events:
       - http:
           path: me
@@ -44,10 +44,20 @@ functions:
           cors: true
           authorizer: verify-token
 
-  getUsers:
-    handler: user/UserHandler.getUsers
+  getTasks:
+    handler: app/Controllers/Tasks.list
     events:
       - http:
-          path: users
+          path: tasks
           method: get
           cors: true
+          authorizer: verify-token
+
+  createTask:
+    handler: app/Controllers/Tasks.create
+    events:
+      - http:
+          path: task
+          method: post
+          cors: true
+          authorizer: verify-token

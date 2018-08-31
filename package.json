@@ -13,7 +13,8 @@
     "bcryptjs": "^2.4.3",
     "bcryptjs-then": "^1.0.1",
     "jsonwebtoken": "^8.2.1",
-    "mongoose": "^5.0.17"
+    "mongoose": "^5.0.17",
+    "validator": "^10.7.0"
   },
   "devDependencies": {
     "serverless-offline": "^3.20.3"
