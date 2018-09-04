@@ -12,14 +12,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "bcryptjs": "^2.4.3",
+    "aws-sdk": "^2.307.0",
     "bcryptjs-then": "^1.0.1",
     "jsonwebtoken": "^8.2.1",
-    "mongoose": "^5.0.17",
+    "uuid": "^3.3.2",
     "validator": "^10.7.0"
   },
   "devDependencies": {
-    "serverless-offline": "^3.20.3",
-    "jest": "^23.5.0"
+    "jest": "^23.5.0",
+    "serverless-dynamodb-local": "^0.2.33",
+    "serverless-offline": "^3.20.3"
   }
 }

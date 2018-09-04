@@ -1,9 +1,9 @@
-const mongoose = require('mongoose');
-let isConnected;
+const AWS = require('aws-sdk');
 
-module.exports = connectToDatabase = () => {
-  if (isConnected) Promise.resolve();
+const options = (process.env.IS_OFFLINE)
+  ? { region: 'localhost', endpoint: 'http://localhost:8000' }
+  : {};
 
-  return mongoose.connect(process.env.DB)
-    .then(db => isConnected = db.connections[0].readyState);
-};
+const client = new AWS.DynamoDB.DocumentClient(options);
+
+module.exports = client;

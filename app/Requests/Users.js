@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs-then');
 const validator = require('validator');
-const UserModel = require('../UserModel');
+// const UserModel = require('../UserModel');
 
 /**
  * Register user validation
@@ -23,10 +23,10 @@ module.exports.create = async (eventBody) => {
   }
 
   // User already exists
-  const user = await UserModel.findOne({ email: eventBody.email });
-  if (user) {
-    errors.push('User with that email exists');
-  }
+  // const user = await UserModel.findOne({ email: eventBody.email });
+  // if (user) {
+  //   errors.push('User with that email exists');
+  // }
 
   // Password isn't long enough
   if (!validator.isLength(eventBody.password, { min: 6 })) {
@@ -43,6 +43,8 @@ module.exports.create = async (eventBody) => {
  * @param obj user - the user from the DB
  */
 module.exports.login = async (eventBody, user) => {
+  console.log(eventBody);
+  console.log(user);
   // User doesn't exist
   if (!user) {
     return Promise.reject(new Error('Incorrect Username or Password'));

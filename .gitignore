@@ -7,3 +7,6 @@ jspm_packages
 
 # Secrets
 secrets.json
+
+# DB
+.dynamodb

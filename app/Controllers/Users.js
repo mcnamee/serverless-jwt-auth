@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs-then');
-const connectToDatabase = require('../../db');
-const UserModel = require('../UserModel');
+const dynamodb = require('../../db');
+const uuid = require('uuid');
+// const UserModel = require('../UserModel');
 const UserRequest = require('../Requests/Users');
 const sanitizer = require('validator');
 
@@ -14,8 +15,7 @@ const sanitizer = require('validator');
 module.exports.login = (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
 
-  return connectToDatabase()
-    .then(() => login(JSON.parse(event.body)))
+  return login(JSON.parse(event.body))
     .then(session => ({
       statusCode: 200,
       body: JSON.stringify(session)
@@ -30,10 +30,25 @@ module.exports.login = (event, context) => {
  * @param eventBody 
  */
 function login(eventBody) {
-  return UserModel.findOne({ email: eventBody.email })
-    .then(user => UserRequest.login(eventBody, user))
-    .then(user => signToken(user.id))
-    .then(token => ({ auth: true, token: token }));
+  return new Promise(async (resolve, reject) => {
+    const params = {
+      TableName: process.env.TABLE_USERS,
+      FilterExpression : 'email = :email',
+      ExpressionAttributeValues : {
+        ':email': sanitizer.normalizeEmail(sanitizer.trim(eventBody.email))
+      },
+    };
+
+    return dynamodb.scan(params, (err, res) => {
+      if (err) return reject(err);
+      if (!res || !res.Items || res.Items.length < 1) {
+        return reject({ message: 'User not found' });
+      }
+      return resolve(res.Items[0]);
+    });
+  })
+  .then(user => UserRequest.login(eventBody, user))
+  .then(user => ({ auth: true, token: signToken(user._id) }));
 }
 
 /**
@@ -56,7 +71,7 @@ function signToken(id) {
 module.exports.register = (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
 
-  return connectToDatabase()
+  return UserRequest.create(JSON.parse(event.body))
     .then(() => register(JSON.parse(event.body)))
     .then(session => ({
       statusCode: 200,
@@ -72,16 +87,25 @@ module.exports.register = (event, context) => {
  * @param eventBody 
  */
 async function register(eventBody) {
-  const body = {
-    firstName: sanitizer.trim(eventBody.firstName),
-    lastName: sanitizer.trim(eventBody.lastName),
-    email: sanitizer.normalizeEmail(sanitizer.trim(eventBody.email)),
-    password: await bcrypt.hash(eventBody.password, 8),
-  };
+  return new Promise(async (resolve, reject) => {
+    const params = {
+      TableName: process.env.TABLE_USERS,
+      Item: {
+        id: uuid.v1(),
+        firstName: sanitizer.trim(eventBody.firstName),
+        lastName: sanitizer.trim(eventBody.lastName),
+        email: sanitizer.normalizeEmail(sanitizer.trim(eventBody.email)),
+        password: await bcrypt.hash(eventBody.password, 8),
+        createdAt: new Date().getTime(),
+        updatedAt: new Date().getTime(),
+      },
+    };
 
-  return UserRequest.create(eventBody)
-    .then(() => UserModel.create(body))
-    .then(user => ({ auth: true, token: signToken(user._id) }));
+    return dynamodb.put(params, (err) => {
+      if (err) return reject(err);
+      return resolve(JSON.stringify(params.Item));
+    });
+  }).then(user => ({ auth: true, token: signToken(user._id) }));
 }
 
 
@@ -94,7 +118,7 @@ async function register(eventBody) {
 module.exports.me = (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
 
-  return connectToDatabase()
+  return dynamodb()
     .then(() => me(event.requestContext.authorizer.principalId)
     ).then(session => ({
       statusCode: 200,
