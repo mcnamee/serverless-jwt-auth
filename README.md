@@ -15,13 +15,13 @@ In production, it uses:
 
 ```bash
 # Install the Serverless CLI
-npm install -g serverless
+yarn global add serverless
 
 # Clone the repo
 git clone https://github.com/mcnamee/serverless-jwt-auth.git serverless-jwt-auth
 
 # Install dependencies
-cd serverless-jwt-auth && npm install
+cd serverless-jwt-auth && yarn install
 
 # Add your secrets (and update the DB connection)
 cp secrets.example.json secrets.json

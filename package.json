@@ -4,7 +4,9 @@
   "description": "",
   "main": "handler.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "sls offline start --skipCacheInvalidation",
+    "test": "jest",
+    "deploy": "sls deploy"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +19,7 @@
     "validator": "^10.7.0"
   },
   "devDependencies": {
-    "serverless-offline": "^3.20.3"
+    "serverless-offline": "^3.20.3",
+    "jest": "^23.5.0"
   }
 }
