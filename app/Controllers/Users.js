@@ -73,7 +73,8 @@ module.exports.register = (event, context) => {
  */
 async function register(eventBody) {
   const body = {
-    name: sanitizer.trim(eventBody.name),
+    firstName: sanitizer.trim(eventBody.firstName),
+    lastName: sanitizer.trim(eventBody.lastName),
     email: sanitizer.normalizeEmail(sanitizer.trim(eventBody.email)),
     password: await bcrypt.hash(eventBody.password, 8),
   };

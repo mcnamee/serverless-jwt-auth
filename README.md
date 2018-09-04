@@ -65,7 +65,8 @@ sls deploy
 POST /register
 
 {
-  "name": "John Smith",
+  "firstname": "John",
+  "lastname": "Smith",
   "email": "john@smith.co",
   "password": "123Abc123"
 }
@@ -77,7 +78,6 @@ POST /register
 POST /login
 
 {
-  "name": "John Smith",
   "email": "john@smith.co",
   "password": "123Abc123"
 }

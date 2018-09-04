@@ -10,8 +10,11 @@ module.exports.create = async (eventBody) => {
   const errors = [];
 
   // Name isn't long enough
-  if (!validator.isLength(eventBody.name, { min: 4 })) {
-    errors.push('Name needs to longer than 4 characters');
+  if (!validator.isLength(eventBody.firstName, { min: 4 })) {
+    errors.push('First Name needs to longer than 4 characters');
+  }
+  if (!validator.isLength(eventBody.lastName, { min: 4 })) {
+    errors.push('Last Name needs to longer than 4 characters');
   }
 
   // Isn't valid email format
