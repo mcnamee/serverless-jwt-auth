@@ -13,8 +13,16 @@ custom:
       port: 8000
       inMemory: true
       migrate: true
+      seed: true
     migration:
       dir: database/migrations
+    seed:
+      test:
+        sources:
+          - table: ${self:provider.environment.TABLE_USERS}
+            sources: [database/seeds/users.json]
+          - table: ${self:provider.environment.TABLE_TASKS}
+            sources: [database/seeds/tasks.json]
 
 provider:
   name: aws
@@ -45,12 +53,10 @@ resources:
       DeletionPolicy: Retain
       Properties:
         AttributeDefinitions:
-          -
-            AttributeName: id
+          - AttributeName: id
             AttributeType: S
         KeySchema:
-          -
-            AttributeName: id
+          - AttributeName: id
             KeyType: HASH
         ProvisionedThroughput:
           ReadCapacityUnits: 1
@@ -61,12 +67,10 @@ resources:
       DeletionPolicy: Retain
       Properties:
         AttributeDefinitions:
-          -
-            AttributeName: id
+          - AttributeName: id
             AttributeType: S
         KeySchema:
-          -
-            AttributeName: id
+          - AttributeName: id
             KeyType: HASH
         ProvisionedThroughput:
           ReadCapacityUnits: 1
@@ -78,7 +82,7 @@ functions:
     handler: app/Middleware/VerifyToken.auth
 
   login:
-    handler: app/Controllers/Users.login
+    handler: app/Handlers/Users.login
     events:
       - http:
           path: login
@@ -86,7 +90,7 @@ functions:
           cors: true
 
   register:
-    handler: app/Controllers/Users.register
+    handler: app/Handlers/Users.register
     events:
       - http:
           path: register
@@ -94,7 +98,7 @@ functions:
           cors: true
 
   me:
-    handler: app/Controllers/Users.me
+    handler: app/Handlers/Users.me
     events:
       - http:
           path: me
@@ -103,7 +107,7 @@ functions:
           authorizer: verify-token
 
   getTasks:
-    handler: app/Controllers/Tasks.list
+    handler: app/Handlers/Tasks.list
     events:
       - http:
           path: tasks
@@ -112,7 +116,7 @@ functions:
           authorizer: verify-token
 
   createTask:
-    handler: app/Controllers/Tasks.create
+    handler: app/Handlers/Tasks.create
     events:
       - http:
           path: task

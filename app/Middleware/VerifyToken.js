@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken'); // used to create, sign, and verify tokens
+const jwt = require('jsonwebtoken');
 
 /**
  * Middleware for authorizing requests

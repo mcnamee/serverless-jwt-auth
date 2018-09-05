@@ -1,0 +1,11 @@
+[
+  {
+    "id": "03969310-b0e1-11e8-a48b-efa31124d46c",
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john@doe.com",
+    "password": "$2a$08$cL0mUj5pDcZ5T5lkkzFFn.joE.ai7Z5KSXBvc5O2OjzNkAKUs5rim",
+    "createdAt": 1536134110955,
+    "updatedAt": 1536134110955
+  }
+]

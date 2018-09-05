@@ -1,0 +1,18 @@
+[
+  {
+    "id": "03969310-b0e1-11e8-a48a-efa31124d46c",
+    "createdBy": "03969310-b0e1-11e8-a48b-efa31124d46c",
+    "title": "John's first task",
+    "completedAt": null,
+    "createdAt": 1536134110955,
+    "updatedAt": 1536134110955
+  },
+  {
+    "id": "03969310-b0e1-11e8-a48c-efa31124d46c",
+    "createdBy": "03969310-b0e1-11e8-a48b-efa31124d46c",
+    "title": "A second task by John",
+    "completedAt": null,
+    "createdAt": 1536134110955,
+    "updatedAt": 1536134110955
+  }
+]
