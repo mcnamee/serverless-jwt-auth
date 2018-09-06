@@ -5,7 +5,7 @@ A [Serverless](https://serverless.com/) REST API boilerplate for authenticating 
 In production, it uses:
 
 - [AWS Lambda](https://aws.amazon.com/lambda/) for computing
-- [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) for database storage (there is a free-for-life tier)
+- [AWS Dynamodb](https://aws.amazon.com/dynamodb‎) for database storage
 - [AWS Cloudformation](https://aws.amazon.com/cloudformation/) to provision the AWS resources
 - [AWS S3](https://aws.amazon.com/s3/) for object storage (storing the code)
 
@@ -23,7 +23,7 @@ git clone https://github.com/mcnamee/serverless-jwt-auth.git serverless-jwt-auth
 # Install dependencies
 cd serverless-jwt-auth && yarn install
 
-# Add your secrets (and update the DB connection)
+# Add your secrets (and update the JWT secret)
 cp secrets.example.json secrets.json
 ```
 
@@ -33,10 +33,10 @@ cp secrets.example.json secrets.json
 
 ### Development
 
-You can use Serverless Offline while you develop:
+You can use Serverless Offline while you develop, which starts a local DynamoDB instance (data is reset on each start)
 
 ```bash
-sls offline start --skipCacheInvalidation
+yarn start
 ```
 
 ### Production
@@ -62,7 +62,7 @@ sls deploy
 ### Register
 
 ```json
-POST /register
+Request: POST /register
 
 {
   "firstname": "John",
@@ -70,31 +70,88 @@ POST /register
   "email": "john@smith.co",
   "password": "123Abc123"
 }
+
+# Response
+
+{
+  "message": "Success",
+  "data": {
+    "token": "<YOUR-JWT-TOKEN>"
+  }
+}
 ```
 
 ### Login
 
 ```json
-POST /login
+# Request: POST /login
 
 {
   "email": "john@smith.co",
   "password": "123Abc123"
+}
+
+# Response
+
+{
+  "message": "Success",
+  "data": {
+    "token": "<YOUR-JWT-TOKEN>",
+    "firstName": "John",
+    "lastName": "Doe",
+    "createdAt": 1536134110955,
+    "level": "standard",
+    "id": "03969310-b0e1-11e8-a48b-efa31124d46c",
+    "email": "john@doe.com",
+    "updatedAt": 1536134110955
+  }
 }
 ```
 
 ### My Details
 
 ```json
-GET /me
+# Request: GET /user
+
+# Response
+
+{
+  "message": "Success",
+  "data": {
+    "firstName": "John",
+    "lastName": "Doe",
+    "createdAt": 1536134110955,
+    "level": "standard",
+    "id": "03969310-b0e1-11e8-a48b-efa31124d46c",
+    "email": "john@doe.com",
+    "updatedAt": 1536276034130
+  }
+}
 ```
 
-### List All Users
+
+### Update User
 
 ```json
-GET /users
+Request: PUT /user
+
+{
+  "firstname": "Jane",
+  "lastname": "Doe"
+}
+
+# Response
+
+{
+  "message": "User Updated",
+  "data": {
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "createdAt": 1536134110955,
+    "level": "standard",
+    "id": "03969310-b0e1-11e8-a48b-efa31124d46c",
+    "email": "john@doe.com",
+    "updatedAt": 1536276156160
+  }
+}
 ```
-
----
-
-Boilerplate taken from the [awesome tutorial over here](https://medium.freecodecamp.org/a-crash-course-on-securing-serverless-apis-with-json-web-tokens-ff657ab2f5a5).
