@@ -97,12 +97,21 @@ functions:
           method: post
           cors: true
 
-  me:
-    handler: app/Handlers/Users.me
+  user:
+    handler: app/Handlers/Users.user
     events:
       - http:
-          path: me
+          path: user
           method: get
+          cors: true
+          authorizer: verify-token
+
+  userUpdate:
+    handler: app/Handlers/Users.update
+    events:
+      - http:
+          path: user
+          method: put
           cors: true
           authorizer: verify-token
 

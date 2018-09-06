@@ -40,6 +40,25 @@ findEmail = (email) => {
   }));
 }
 
+
+/**
+ * Get a user by ID
+ * @param str id
+ */
+userById = (id) => {
+  return new Promise(async resolve => DB.get({ TableName, Key: { id } }, (err, res) => {
+    if (err) throw err;
+
+    // Return the user
+    if (res && res.Item) {
+      if (res.Item.password) delete res.Item.password;
+      return resolve(res.Item);
+    }
+
+    return resolve(null);
+  }));
+}
+
 /* *** Endpoints *** */
 
 /**
@@ -58,15 +77,17 @@ module.exports.register = async (event) => {
       lastName: sanitizer.trim(eventBody.lastName),
       email: sanitizer.normalizeEmail(sanitizer.trim(eventBody.email)),
       password: await bcrypt.hash(eventBody.password, 8),
+      level: 'standard',
       createdAt: new Date().getTime(),
       updatedAt: new Date().getTime(),
     },
   };
 
-  return findEmail(eventBody.email) // Does the email already exist?
-    .then(user => ValidateRequest.register(eventBody, user)) // Validate the user input
+  return findEmail(params.Item.email) // Does the email already exist?
+    .then(user => ValidateRequest.register(eventBody, user, params.Item)) // Validate the user input
     .then(() => DB.put(params, err => { if (err) { throw err; } })) // Add the data to the DB
-    .then(() => ({ auth: true, token: signToken(params.Item.id) })) // Create an Auth token
+    .then(() => userById(params.Item.id)) // Get user data from DB
+    .then(user => ({ message: 'Success', data: { token: signToken(user.id), ...user } })) // Create an Auth token
     .then(data => ApiResponse.success(data)) // Respond with data
     .catch(err => ApiResponse.failure(err)); // Respond with error
 }
@@ -83,29 +104,62 @@ module.exports.login = (event) => {
 
   return findEmail(eventBody.email) // Does the user exist?
     .then(user => ValidateRequest.login(eventBody, user)) // Validate the user input
-    .then(user => ({ auth: true, token: signToken(user.id) })) // Create an Auth token
+    .then(user => userById(user.id)) // Get user data from DB
+    .then(user => ({ message: 'Success', data: { token: signToken(user.id), ...user } })) // Create an Auth token
     .then(data => ApiResponse.success(data)) // Respond with data
     .catch(err => ApiResponse.failure(err)); // Respond with error
 }
 
 
 /**
- * GET /me ----------------------------------------------------
+ * GET /user ----------------------------------------------------
  * Get's the authenticated user's login details
  * @param event 
  * @param context 
  */
-module.exports.me = (event) => {
-  const userId = event.requestContext.authorizer.principalId;
-  const params = { TableName, Key: { id: userId } };
-
-  return new Promise(async (resolve, reject) =>
-    // Get the data from the DB
-    DB.get(params, (err, res) => {
-      if (err) return reject(err);
-      if (!res || !res.Item) { return reject({ message: 'User not found' }); }
-      return resolve(res.Item);
+module.exports.user = (event) =>
+  userById(event.requestContext.authorizer.principalId)
+    .then(data => ApiResponse.success({ // Respond with data
+      message: 'Success',
+      data,
     }))
-    .then(data => ApiResponse.success(data)) // Respond with data
+    .catch(err => ApiResponse.failure(err)); // Respond with error
+
+
+/**
+ * PUT /user ----------------------------------------------------
+ * Update my User account
+ * @param event 
+ * @param context 
+ */
+module.exports.update = async (event) => {
+  const eventBody = JSON.parse(event.body);
+  const id = event.requestContext.authorizer.principalId;
+  const user = await userById(id);
+
+  const sanitizedUser = { id }; // Need the id for when comparing emails
+  if (eventBody.firstName) sanitizedUser.firstName = sanitizer.trim(eventBody.firstName);
+  if (eventBody.lastName) sanitizedUser.lastName = sanitizer.trim(eventBody.lastName);
+  if (eventBody.email) sanitizedUser.email = sanitizer.normalizeEmail(sanitizer.trim(eventBody.email));
+  if (eventBody.password) sanitizedUser.password = await bcrypt.hash(eventBody.password, 8);
+
+  const params = {
+    TableName,
+    Item: {
+      ...user, // Need the existing data, otherwise other values are removed on put
+      ...sanitizedUser,
+      updatedAt: new Date().getTime(),
+    },
+  };
+
+  // Does the email already exist?
+  const newEmailUser = sanitizedUser.email ? await findEmail(sanitizedUser.email) : null;
+
+  return ValidateRequest.update(eventBody, newEmailUser, sanitizedUser) // Validate the user input
+    .then(() => DB.put(params, err => { if (err) { throw err; } })) // Add the data to the DB
+    .then(async () => ApiResponse.success({
+      message: 'User Updated',
+      data: await userById(id),
+    }))
     .catch(err => ApiResponse.failure(err)); // Respond with error
 }

@@ -5,6 +5,7 @@
     "lastName": "Doe",
     "email": "john@doe.com",
     "password": "$2a$08$cL0mUj5pDcZ5T5lkkzFFn.joE.ai7Z5KSXBvc5O2OjzNkAKUs5rim",
+    "level": "standard",
     "createdAt": 1536134110955,
     "updatedAt": 1536134110955
   }
