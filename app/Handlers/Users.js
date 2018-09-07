@@ -27,43 +27,39 @@ const signToken = id => jwt.sign({ id: id }, process.env.JWT_SECRET, { expiresIn
  * Does a given email exist as a user?
  * @param str email
  */
-findEmail = (email) => {
-  const params = {
+findEmail = (email) => DB.scan({
     TableName,
     FilterExpression : 'email = :email',
     ExpressionAttributeValues : {
       ':email': sanitizer.normalizeEmail(sanitizer.trim(email))
     },
-  };
-
-  return new Promise(async resolve => DB.scan(params, (err, res) => {
+  })
+  .promise()
+  .then((res) => {
     // Return the user
-    if (res && res.Items && res.Items[0]) resolve(res.Items[0]);
+    if (res && res.Items && res.Items[0]) return res.Items[0];
 
     // Otherwise let us know that its empty
-    resolve(null);
-  }));
-}
+    return null;
+  }).catch(err => null);
 
 
 /**
  * Get a user by ID
  * @param str id
  */
-userById = (id) => {
-  return new Promise(async resolve => DB.get({ TableName, Key: { id } }, (err, res) => {
-    if (err) throw err;
-
+userById = (id) => DB.get({ TableName, Key: { id } })
+  .promise()
+  .then((res) => {
     // Return the user
     if (res && res.Item) {
       // We don't want the password shown to users
       if (res.Item.password) delete res.Item.password;
-      return resolve(res.Item);
+      return res.Item;
     }
 
-    return resolve(null);
-  }));
-}
+    throw new Error('User not found');
+  })
 
 
 /* *** Endpoints *** */
@@ -72,20 +68,21 @@ userById = (id) => {
 /**
  * POST /register ----------------------------------------------------
  * User Sign Up
- * @param event 
- * @param context 
+ * @param event
+ * @param context
+ * @param cb
  */
 const registerHandler = async (event, context, cb) => {
-  const { body } = event;
+  const { firstName, lastName, email, password } = event.body;
 
   const params = {
     TableName,
     Item: {
       id: await uuid.v1(),
-      firstName: sanitizer.trim(body.firstName),
-      lastName: sanitizer.trim(body.lastName),
-      email: sanitizer.normalizeEmail(sanitizer.trim(body.email)),
-      password: await bcrypt.hash(body.password, 8),
+      firstName: sanitizer.trim(firstName),
+      lastName: sanitizer.trim(lastName),
+      email: sanitizer.normalizeEmail(sanitizer.trim(email)),
+      password: await bcrypt.hash(password, 8),
       level: 'standard',
       createdAt: new Date().getTime(),
       updatedAt: new Date().getTime(),
@@ -94,8 +91,8 @@ const registerHandler = async (event, context, cb) => {
 
   return findEmail(params.Item.email) // Does the email already exist?
     .then(user => { if (user) throw new Error('User with that email exists') })
-    .then(() => DB.put(params, err => { if (err) throw err })) // Add the data to the DB
-    .then(async () => await userById(params.Item.id)) // Get user data from DB
+    .then(() => DB.put(params).promise()) // Add the data to the DB
+    .then(() => userById(params.Item.id)) // Get user data from DB
     .then(user => cb(null, {
       statusCode: 201,
       body: { message: 'Success', data: { token: signToken(params.Item.id), ...user } },
@@ -113,20 +110,20 @@ const register = middy(registerHandler)
 /**
  * POST /login ----------------------------------------------------
  * Logs a user in - returns a JWT token
- * @param event 
- * @param context 
+ * @param event
+ * @param context
+ * @param cb
  */
 const loginHandler = async (event, context, cb) => {
-  const { body } = event;
+  const { email, password } = event.body;
 
-  return findEmail(body.email) // Does the user exist?
+  return findEmail(email) // Does the email exist?
     .then(user => { if (!user) { throw new Error('Username/Password is not correct'); } return user; })
     .then(async (user) => { // Check if passwords match
-      const passwordIsValid = await bcrypt.compare(body.password, user.password);
+      const passwordIsValid = await bcrypt.compare(password, user.password);
       if (!passwordIsValid) throw new Error('Username/Password is not correct');
       return user;
     })
-    .then(async user => await userById(user.id)) // Get user data from DB
     .then(user => cb(null, {
       body: { message: 'Success', data: { token: signToken(user.id), ...user } },
     }))
@@ -142,15 +139,14 @@ const login = middy(loginHandler)
 
 /**
  * GET /user ----------------------------------------------------
- * Get's the authenticated user's login details
- * @param event 
- * @param context 
+ * Returns authenticated user's login details
+ * @param event
+ * @param context
+ * @param cb
  */
-const userHandler = async (event, context, cb) => {
-  await userById(event.requestContext.authorizer.principalId)
-    .then(user => cb(null, { body: { message: 'Success', data: user } }))
-    .catch(err => ({ body: { message: err.message } }));
-}
+const userHandler = (event, context, cb) => cb(null, {
+  body: { message: 'Success', data: event.requestContext.authorizer.user }
+});
 
 const user = middy(userHandler)
   .use(httpErrorHandler())
@@ -160,45 +156,48 @@ const user = middy(userHandler)
 /**
  * PUT /user ----------------------------------------------------
  * Update my User account
- * @param event 
- * @param context 
+ * @param event
+ * @param context
+ * @param cb
  */
 const updateHandler = async (event, context, cb) => {
-  const { body } = event;
-  const { firstName, lastName, email, password } = body;
+  const { firstName, lastName, email, password } = event.body;
   const id = event.requestContext.authorizer.principalId;
-  const user = await userById(id);
 
-  const sanitizedInput = {
-    id, // Need the id for when comparing emails
-    firstName: sanitizer.trim(firstName),
-    lastName: sanitizer.trim(lastName),
-    email: sanitizer.normalizeEmail(sanitizer.trim(email)),
+  // Create update query based on user input
+  let query = 'set firstName=:fn, lastName=:ln, email=:em, updatedAt=:ud';
+  const queryValues = {
+    ':fn': sanitizer.trim(firstName),
+    ':ln': sanitizer.trim(lastName),
+    ':em': sanitizer.normalizeEmail(sanitizer.trim(email)),
+    ':ud': new Date().getTime(),
   };
 
-  // Password is an optional field
-  if (password) sanitizedInput.password = await bcrypt.hash(password, 8);
+  // Password is optional, if provided, pass to query
+  if (password) {
+    query += ', password=:pw';
+    queryValues[':pw'] = await bcrypt.hash(password, 8);
+  }
 
   const params = {
     TableName,
-    Item: {
-      ...user, // Need the existing data, otherwise other values are removed on put
-      ...sanitizedInput,
-      updatedAt: new Date().getTime(),
-    },
-  };
+    Key: { id },
+    UpdateExpression: query,
+    ExpressionAttributeValues: queryValues,
+    ReturnValues: 'ALL_NEW',
+  }
 
-  return findEmail(sanitizedInput.email) // Check if the new email already exists
-    .then((existingUser) => {
-      if (sanitizedInput.email && existingUser && existingUser.email) {
+  return findEmail(queryValues[':em']) // Check if the new email already exists
+    .then((foundUser) => {
+      if (foundUser && foundUser.email) {
         // New email exists, and doesn't belong to the current user
-        if (existingUser.email === sanitizedInput.email && existingUser.id !== sanitizedInput.id) {
+        if (foundUser.email === queryValues[':em'] && foundUser.id !== id) {
           throw new Error('That email belongs to another user');
         }
       }
     })
-    .then(() => DB.put(params, err => { if (err) throw err; })) // Update the data to the DB
-    .then(async () => cb(null, { body: { message: 'User Updated', data:  await userById(id), } }))
+    .then(() => DB.update(params).promise()) // Update the data to the DB
+    .then(user => cb(null, { body: { message: 'User Updated', data: user } }))
     .catch(err => ({ body: { message: err.message } }));
 }
 
@@ -208,5 +207,7 @@ const update = middy(updateHandler)
   .use(httpErrorHandler())
   .use(apiResponseMiddleware());
 
+
+/* *** Export Endpoints *** */
 
 module.exports = { register, login, user, update };
