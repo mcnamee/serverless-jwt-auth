@@ -1,22 +1,27 @@
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs-then');
 const uuid = require('uuid');
+const middy = require('middy');
+const jwt = require('jsonwebtoken');
 const sanitizer = require('validator');
+const bcrypt = require('bcryptjs-then');
+const { jsonBodyParser, httpErrorHandler } = require('middy/middlewares');
 
 const DB = require('../../db');
-const ValidateRequest = require('../Requests/Users');
-const ApiResponse = require('../Helpers/ApiResponse');
+const RequestSchema = require('../Requests/Users');
+const validatorMiddleware = require('../Middleware/Validator');
+const apiResponseMiddleware = require('../Middleware/ApiResponse');
 
 const TableName = process.env.TABLE_USERS;
 
+
 /* *** Helpers *** */
+
 
 /**
  * Create & Sign a JWT with the user ID for request auth
  * @param str id 
  */
-const signToken = id =>
-  jwt.sign({ id: id }, process.env.JWT_SECRET, { expiresIn: 86400 });
+const signToken = id => jwt.sign({ id: id }, process.env.JWT_SECRET, { expiresIn: 86400 });
+
 
 /**
  * Does a given email exist as a user?
@@ -51,6 +56,7 @@ userById = (id) => {
 
     // Return the user
     if (res && res.Item) {
+      // We don't want the password shown to users
       if (res.Item.password) delete res.Item.password;
       return resolve(res.Item);
     }
@@ -59,7 +65,9 @@ userById = (id) => {
   }));
 }
 
+
 /* *** Endpoints *** */
+
 
 /**
  * POST /register ----------------------------------------------------
@@ -67,16 +75,17 @@ userById = (id) => {
  * @param event 
  * @param context 
  */
-module.exports.register = async (event) => {
-  const eventBody = JSON.parse(event.body);
+const registerHandler = async (event, context, cb) => {
+  const { body } = event;
+
   const params = {
     TableName,
     Item: {
-      id: uuid.v1(),
-      firstName: sanitizer.trim(eventBody.firstName),
-      lastName: sanitizer.trim(eventBody.lastName),
-      email: sanitizer.normalizeEmail(sanitizer.trim(eventBody.email)),
-      password: await bcrypt.hash(eventBody.password, 8),
+      id: await uuid.v1(),
+      firstName: sanitizer.trim(body.firstName),
+      lastName: sanitizer.trim(body.lastName),
+      email: sanitizer.normalizeEmail(sanitizer.trim(body.email)),
+      password: await bcrypt.hash(body.password, 8),
       level: 'standard',
       createdAt: new Date().getTime(),
       updatedAt: new Date().getTime(),
@@ -84,13 +93,21 @@ module.exports.register = async (event) => {
   };
 
   return findEmail(params.Item.email) // Does the email already exist?
-    .then(user => ValidateRequest.register(eventBody, user, params.Item)) // Validate the user input
-    .then(() => DB.put(params, err => { if (err) { throw err; } })) // Add the data to the DB
-    .then(() => userById(params.Item.id)) // Get user data from DB
-    .then(user => ({ message: 'Success', data: { token: signToken(user.id), ...user } })) // Create an Auth token
-    .then(data => ApiResponse.success(data)) // Respond with data
-    .catch(err => ApiResponse.failure(err)); // Respond with error
+    .then(user => { if (user) throw new Error('User with that email exists') })
+    .then(() => DB.put(params, err => { if (err) throw err })) // Add the data to the DB
+    .then(async () => await userById(params.Item.id)) // Get user data from DB
+    .then(user => cb(null, {
+      statusCode: 201,
+      body: { message: 'Success', data: { token: signToken(params.Item.id), ...user } },
+    }))
+    .catch(err => ({ body: { message: err.message } }));
 }
+
+const register = middy(registerHandler)
+  .use(jsonBodyParser())
+  .use(validatorMiddleware({ inputSchema: RequestSchema.register }))
+  .use(httpErrorHandler())
+  .use(apiResponseMiddleware());
 
 
 /**
@@ -99,16 +116,28 @@ module.exports.register = async (event) => {
  * @param event 
  * @param context 
  */
-module.exports.login = (event) => {
-  const eventBody = JSON.parse(event.body);
+const loginHandler = async (event, context, cb) => {
+  const { body } = event;
 
-  return findEmail(eventBody.email) // Does the user exist?
-    .then(user => ValidateRequest.login(eventBody, user)) // Validate the user input
-    .then(user => userById(user.id)) // Get user data from DB
-    .then(user => ({ message: 'Success', data: { token: signToken(user.id), ...user } })) // Create an Auth token
-    .then(data => ApiResponse.success(data)) // Respond with data
-    .catch(err => ApiResponse.failure(err)); // Respond with error
+  return findEmail(body.email) // Does the user exist?
+    .then(user => { if (!user) { throw new Error('Username/Password is not correct'); } return user; })
+    .then(async (user) => { // Check if passwords match
+      const passwordIsValid = await bcrypt.compare(body.password, user.password);
+      if (!passwordIsValid) throw new Error('Username/Password is not correct');
+      return user;
+    })
+    .then(async user => await userById(user.id)) // Get user data from DB
+    .then(user => cb(null, {
+      body: { message: 'Success', data: { token: signToken(user.id), ...user } },
+    }))
+    .catch(err => ({ body: { message: err.message } }));
 }
+
+const login = middy(loginHandler)
+  .use(jsonBodyParser())
+  .use(validatorMiddleware({ inputSchema: RequestSchema.login }))
+  .use(httpErrorHandler())
+  .use(apiResponseMiddleware());
 
 
 /**
@@ -117,13 +146,15 @@ module.exports.login = (event) => {
  * @param event 
  * @param context 
  */
-module.exports.user = (event) =>
-  userById(event.requestContext.authorizer.principalId)
-    .then(data => ApiResponse.success({ // Respond with data
-      message: 'Success',
-      data,
-    }))
-    .catch(err => ApiResponse.failure(err)); // Respond with error
+const userHandler = async (event, context, cb) => {
+  await userById(event.requestContext.authorizer.principalId)
+    .then(user => cb(null, { body: { message: 'Success', data: user } }))
+    .catch(err => ({ body: { message: err.message } }));
+}
+
+const user = middy(userHandler)
+  .use(httpErrorHandler())
+  .use(apiResponseMiddleware());
 
 
 /**
@@ -132,34 +163,50 @@ module.exports.user = (event) =>
  * @param event 
  * @param context 
  */
-module.exports.update = async (event) => {
-  const eventBody = JSON.parse(event.body);
+const updateHandler = async (event, context, cb) => {
+  const { body } = event;
+  const { firstName, lastName, email, password } = body;
   const id = event.requestContext.authorizer.principalId;
   const user = await userById(id);
 
-  const sanitizedUser = { id }; // Need the id for when comparing emails
-  if (eventBody.firstName) sanitizedUser.firstName = sanitizer.trim(eventBody.firstName);
-  if (eventBody.lastName) sanitizedUser.lastName = sanitizer.trim(eventBody.lastName);
-  if (eventBody.email) sanitizedUser.email = sanitizer.normalizeEmail(sanitizer.trim(eventBody.email));
-  if (eventBody.password) sanitizedUser.password = await bcrypt.hash(eventBody.password, 8);
+  const sanitizedInput = {
+    id, // Need the id for when comparing emails
+    firstName: sanitizer.trim(firstName),
+    lastName: sanitizer.trim(lastName),
+    email: sanitizer.normalizeEmail(sanitizer.trim(email)),
+  };
+
+  // Password is an optional field
+  if (password) sanitizedInput.password = await bcrypt.hash(password, 8);
 
   const params = {
     TableName,
     Item: {
       ...user, // Need the existing data, otherwise other values are removed on put
-      ...sanitizedUser,
+      ...sanitizedInput,
       updatedAt: new Date().getTime(),
     },
   };
 
-  // Does the email already exist?
-  const newEmailUser = sanitizedUser.email ? await findEmail(sanitizedUser.email) : null;
-
-  return ValidateRequest.update(eventBody, newEmailUser, sanitizedUser) // Validate the user input
-    .then(() => DB.put(params, err => { if (err) { throw err; } })) // Add the data to the DB
-    .then(async () => ApiResponse.success({
-      message: 'User Updated',
-      data: await userById(id),
-    }))
-    .catch(err => ApiResponse.failure(err)); // Respond with error
+  return findEmail(sanitizedInput.email) // Check if the new email already exists
+    .then((existingUser) => {
+      if (sanitizedInput.email && existingUser && existingUser.email) {
+        // New email exists, and doesn't belong to the current user
+        if (existingUser.email === sanitizedInput.email && existingUser.id !== sanitizedInput.id) {
+          throw new Error('That email belongs to another user');
+        }
+      }
+    })
+    .then(() => DB.put(params, err => { if (err) throw err; })) // Update the data to the DB
+    .then(async () => cb(null, { body: { message: 'User Updated', data:  await userById(id), } }))
+    .catch(err => ({ body: { message: err.message } }));
 }
+
+const update = middy(updateHandler)
+  .use(jsonBodyParser())
+  .use(validatorMiddleware({ inputSchema: RequestSchema.update }))
+  .use(httpErrorHandler())
+  .use(apiResponseMiddleware());
+
+
+module.exports = { register, login, user, update };

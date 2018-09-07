@@ -15,6 +15,7 @@
     "aws-sdk": "^2.307.0",
     "bcryptjs-then": "^1.0.1",
     "jsonwebtoken": "^8.2.1",
+    "middy": "^0.17.1",
     "uuid": "^3.3.2",
     "validator": "^10.7.0"
   },
