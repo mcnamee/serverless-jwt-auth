@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const DB = require('../../db');
 
 /**
  * Middleware for authorizing requests
@@ -9,27 +10,37 @@ const jwt = require('jsonwebtoken');
 module.exports.auth = (event, context, callback) => {
   // Check header or url parameters or post parameters for token
   const token = event.authorizationToken;
-
   if (!token) return callback(null, 'Unauthorized');
 
   // Verifies secret and checks exp
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) return callback(null, 'Unauthorized');
 
-    // If everything is good, save to request for use in other routes
-    return callback(null, generatePolicy(decoded.id, 'Allow', event.methodArn))
+    // Check whether user ID is legit in the DB
+    return DB.get({
+      TableName:process.env.TABLE_USERS,
+      Key: { id: decoded.id }
+    }).promise().then((res) => {
+      // If the user id exists in the db, save to request for use in other routes
+      if (res && res.Item) return callback(null, generatePolicy(res.Item, 'Allow', event.methodArn))
+      
+      // Otherwise return an error
+      return callback(null, 'Unauthorized');
+    });
   });
 };
 
 /**
  * Generate the JWT Auth Policy
- * @param principalId 
+ * @param user 
  * @param effect 
  * @param resource 
  */
-const generatePolicy = (principalId, effect, resource) => {
-  const authResponse = {};
-  authResponse.principalId = principalId;
+const generatePolicy = (user, effect, resource) => {
+  const authResponse = {
+    context: { user },
+    principalId: user.id,
+  }
 
   if (effect && resource) {
     const statementOne = {
