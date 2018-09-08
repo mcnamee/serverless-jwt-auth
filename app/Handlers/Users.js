@@ -1,68 +1,15 @@
 const uuid = require('uuid');
 const middy = require('middy');
-const jwt = require('jsonwebtoken');
 const sanitizer = require('validator');
 const bcrypt = require('bcryptjs-then');
 const { jsonBodyParser, httpErrorHandler } = require('middy/middlewares');
 
 const DB = require('../../db');
-const RequestSchema = require('../Requests/Users');
+const requestSchema = require('../Requests/Users');
 const validatorMiddleware = require('../Middleware/Validator');
 const apiResponseMiddleware = require('../Middleware/ApiResponse');
-
+const { signToken, userByEmail, userById } = require('../Helpers/Users');
 const TableName = process.env.TABLE_USERS;
-
-
-/* *** Helpers *** */
-
-
-/**
- * Create & Sign a JWT with the user ID for request auth
- * @param str id 
- */
-const signToken = id => jwt.sign({ id: id }, process.env.JWT_SECRET, { expiresIn: 86400 });
-
-
-/**
- * Does a given email exist as a user?
- * @param str email
- */
-findEmail = (email) => DB.scan({
-    TableName,
-    FilterExpression : 'email = :email',
-    ExpressionAttributeValues : {
-      ':email': sanitizer.normalizeEmail(sanitizer.trim(email))
-    },
-  })
-  .promise()
-  .then((res) => {
-    // Return the user
-    if (res && res.Items && res.Items[0]) return res.Items[0];
-
-    // Otherwise let us know that its empty
-    return null;
-  }).catch(err => null);
-
-
-/**
- * Get a user by ID
- * @param str id
- */
-userById = (id) => DB.get({ TableName, Key: { id } })
-  .promise()
-  .then((res) => {
-    // Return the user
-    if (res && res.Item) {
-      // We don't want the password shown to users
-      if (res.Item.password) delete res.Item.password;
-      return res.Item;
-    }
-
-    throw new Error('User not found');
-  })
-
-
-/* *** Endpoints *** */
 
 
 /**
@@ -72,7 +19,7 @@ userById = (id) => DB.get({ TableName, Key: { id } })
  * @param context
  * @param cb
  */
-const registerHandler = async (event, context, cb) => {
+const register = async (event, context, cb) => {
   const { firstName, lastName, email, password } = event.body;
 
   const params = {
@@ -89,7 +36,7 @@ const registerHandler = async (event, context, cb) => {
     },
   };
 
-  return findEmail(params.Item.email) // Does the email already exist?
+  return userByEmail(params.Item.email) // Does the email already exist?
     .then(user => { if (user) throw new Error('User with that email exists') })
     .then(() => DB.put(params).promise()) // Add the data to the DB
     .then(() => userById(params.Item.id)) // Get user data from DB
@@ -100,9 +47,9 @@ const registerHandler = async (event, context, cb) => {
     .catch(err => ({ body: { message: err.message } }));
 }
 
-const register = middy(registerHandler)
+module.exports.register = middy(register)
   .use(jsonBodyParser())
-  .use(validatorMiddleware({ inputSchema: RequestSchema.register }))
+  .use(validatorMiddleware({ inputSchema: requestSchema.register }))
   .use(httpErrorHandler())
   .use(apiResponseMiddleware());
 
@@ -114,10 +61,10 @@ const register = middy(registerHandler)
  * @param context
  * @param cb
  */
-const loginHandler = async (event, context, cb) => {
+const login = async (event, context, cb) => {
   const { email, password } = event.body;
 
-  return findEmail(email) // Does the email exist?
+  return userByEmail(email) // Does the email exist?
     .then(user => { if (!user) { throw new Error('Username/Password is not correct'); } return user; })
     .then(async (user) => { // Check if passwords match
       const passwordIsValid = await bcrypt.compare(password, user.password);
@@ -130,9 +77,9 @@ const loginHandler = async (event, context, cb) => {
     .catch(err => ({ body: { message: err.message } }));
 }
 
-const login = middy(loginHandler)
+module.exports.login = middy(login)
   .use(jsonBodyParser())
-  .use(validatorMiddleware({ inputSchema: RequestSchema.login }))
+  .use(validatorMiddleware({ inputSchema: requestSchema.login }))
   .use(httpErrorHandler())
   .use(apiResponseMiddleware());
 
@@ -144,11 +91,11 @@ const login = middy(loginHandler)
  * @param context
  * @param cb
  */
-const userHandler = (event, context, cb) => cb(null, {
+const user = (event, context, cb) => cb(null, {
   body: { message: 'Success', data: event.requestContext.authorizer.user }
 });
 
-const user = middy(userHandler)
+module.exports.user = middy(user)
   .use(httpErrorHandler())
   .use(apiResponseMiddleware());
 
@@ -160,7 +107,7 @@ const user = middy(userHandler)
  * @param context
  * @param cb
  */
-const updateHandler = async (event, context, cb) => {
+const update = async (event, context, cb) => {
   const { firstName, lastName, email, password } = event.body;
   const id = event.requestContext.authorizer.principalId;
 
@@ -187,7 +134,7 @@ const updateHandler = async (event, context, cb) => {
     ReturnValues: 'ALL_NEW',
   }
 
-  return findEmail(queryValues[':em']) // Check if the new email already exists
+  return userByEmail(queryValues[':em']) // Check if the new email already exists
     .then((foundUser) => {
       if (foundUser && foundUser.email) {
         // New email exists, and doesn't belong to the current user
@@ -201,13 +148,8 @@ const updateHandler = async (event, context, cb) => {
     .catch(err => ({ body: { message: err.message } }));
 }
 
-const update = middy(updateHandler)
+module.exports.update = middy(update)
   .use(jsonBodyParser())
-  .use(validatorMiddleware({ inputSchema: RequestSchema.update }))
+  .use(validatorMiddleware({ inputSchema: requestSchema.update }))
   .use(httpErrorHandler())
   .use(apiResponseMiddleware());
-
-
-/* *** Export Endpoints *** */
-
-module.exports = { register, login, user, update };
