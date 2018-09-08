@@ -5,7 +5,7 @@
   "main": "handler.js",
   "scripts": {
     "start": "sls offline start --skipCacheInvalidation",
-    "test": "jest",
+    "test": "JWT_SECRET=123Abc789XYZ jest",
     "deploy": "sls deploy"
   },
   "keywords": [],
