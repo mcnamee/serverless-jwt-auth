@@ -2,7 +2,7 @@ const uuid = require('uuid');
 const middy = require('middy');
 const sanitizer = require('validator');
 const bcrypt = require('bcryptjs-then');
-const { jsonBodyParser, httpErrorHandler } = require('middy/middlewares');
+const { jsonBodyParser } = require('middy/middlewares');
 
 const DB = require('../../db');
 const requestSchema = require('../Requests/Users');
@@ -42,15 +42,14 @@ const register = async (event, context, cb) => {
     .then(() => userById(params.Item.id)) // Get user data from DB
     .then(user => cb(null, {
       statusCode: 201,
-      body: { message: 'Success', data: { token: signToken(params.Item.id), ...user } },
-    }))
-    .catch(err => ({ body: { message: err.message } }));
+      message: 'Success - you are now registered',
+      data: { token: signToken(params.Item.id), ...user },
+    }));
 }
 
 module.exports.register = middy(register)
   .use(jsonBodyParser())
   .use(validatorMiddleware({ inputSchema: requestSchema.register }))
-  .use(httpErrorHandler())
   .use(apiResponseMiddleware());
 
 
@@ -72,15 +71,14 @@ const login = async (event, context, cb) => {
       return user;
     })
     .then(user => cb(null, {
-      body: { message: 'Success', data: { token: signToken(user.id), ...user } },
-    }))
-    .catch(err => ({ body: { message: err.message } }));
+      message: 'Success - you are now logged in',
+      data: { token: signToken(user.id), ...user },
+    }));
 }
 
 module.exports.login = middy(login)
   .use(jsonBodyParser())
   .use(validatorMiddleware({ inputSchema: requestSchema.login }))
-  .use(httpErrorHandler())
   .use(apiResponseMiddleware());
 
 
@@ -92,11 +90,11 @@ module.exports.login = middy(login)
  * @param cb
  */
 const user = (event, context, cb) => cb(null, {
-  body: { message: 'Success', data: event.requestContext.authorizer.user }
+  message: 'Success - user data retrieved',
+  data: event.requestContext.authorizer.user,
 });
 
 module.exports.user = middy(user)
-  .use(httpErrorHandler())
   .use(apiResponseMiddleware());
 
 
@@ -144,12 +142,10 @@ const update = async (event, context, cb) => {
       }
     })
     .then(() => DB.update(params).promise()) // Update the data to the DB
-    .then(user => cb(null, { body: { message: 'User Updated', data: user } }))
-    .catch(err => ({ body: { message: err.message } }));
+    .then(user => cb(null, {message: 'Success - user updated', data: user }));
 }
 
 module.exports.update = middy(update)
   .use(jsonBodyParser())
   .use(validatorMiddleware({ inputSchema: requestSchema.update }))
-  .use(httpErrorHandler())
   .use(apiResponseMiddleware());

@@ -3,14 +3,19 @@ module.exports = () => {
     after: (handler, next) => {
       handler.response = {
         statusCode: handler.response.statusCode || 200,
-        body: JSON.stringify(handler.response.body),
+        body: JSON.stringify({
+          message: handler.response.message || 'Success',
+          data: handler.response.data,
+        }),
       };
       next();
     },
     onError: (handler, next) => {
       handler.response = {
-        statusCode: handler.response.statusCode || 500,
-        body: JSON.stringify(handler.response.body),
+        statusCode: 500,
+        body: JSON.stringify({
+          message: handler.error.message || 'Error',
+        }),
       };
       next();
     }
