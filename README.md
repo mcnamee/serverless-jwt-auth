@@ -39,6 +39,12 @@ You can use Serverless Offline while you develop, which starts a local DynamoDB 
 yarn start
 ```
 
+### Tests
+
+```bash
+yarn test
+```
+
 ### Production
 
 __1. Setup your AWS credentials__
@@ -74,9 +80,16 @@ Request: POST /register
 # Response
 
 {
-  "message": "Success",
+  "message": "Success - you are now registered",
   "data": {
-    "token": "<YOUR-JWT-TOKEN>"
+    "token": "<YOUR-JWT-TOKEN>",
+    "firstName": "John",
+    "lastName": "Smith",
+    "createdAt": 1536717884934,
+    "level": "standard",
+    "id": "37ff3e00-b630-11e8-b87d-85b1d165e421",
+    "email": "john@doe.com",
+    "updatedAt": 1536717884934
   }
 }
 ```
@@ -94,7 +107,7 @@ Request: POST /register
 # Response
 
 {
-  "message": "Success",
+  "message": "Success - you are now logged in",
   "data": {
     "token": "<YOUR-JWT-TOKEN>",
     "firstName": "John",
@@ -116,7 +129,7 @@ Request: POST /register
 # Response
 
 {
-  "message": "Success",
+  "message": "Success - user data retrieved",
   "data": {
     "firstName": "John",
     "lastName": "Doe",
@@ -136,14 +149,16 @@ Request: POST /register
 Request: PUT /user
 
 {
-  "firstname": "Jane",
-  "lastname": "Doe"
+	"firstName": "Jane",
+	"lastName": "Doe",
+	"email": "jane@doe.com",
+	"password": "123Abc"
 }
 
 # Response
 
 {
-  "message": "User Updated",
+  "message": "Success - user updated",
   "data": {
     "firstName": "Jane",
     "lastName": "Doe",
