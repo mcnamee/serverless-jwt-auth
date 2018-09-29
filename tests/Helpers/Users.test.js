@@ -18,6 +18,8 @@ const mockUserData = {
  * Tests for signToken()
  */
 describe('JWT Tokens', () => {
+  beforeEach(() => { jest.resetModules(); process.env = { JWT_SECRET: '123Abc123' }; });
+
   it('should generate token + when decoded, should be equal to input User ID', async () => {
     const userId = '464b5e40-b2fb-11e8-89b6-b5c77595a2ec';
     const token = await signToken(userId);
