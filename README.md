@@ -1,4 +1,4 @@
-# Serverless JWT Auth Boilerplate
+# Serverless JWT Auth Boilerplate (⚠️ Work In Progress)
 
 A [Serverless](https://serverless.com/) REST API boilerplate for authenticating with email/password over JWT (JSON Web Tokens). 
 
