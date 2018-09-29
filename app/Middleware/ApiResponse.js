@@ -12,9 +12,10 @@ module.exports = () => {
     },
     onError: (handler, next) => {
       handler.response = {
-        statusCode: 500,
+        statusCode: handler.response.statusCode || 500,
         body: JSON.stringify({
           message: handler.error.message || 'Error',
+          data: handler.response.body.data || null,
         }),
       };
       next();
