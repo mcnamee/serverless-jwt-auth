@@ -1,0 +1,16 @@
+getTasks:
+  handler: app/Handlers/Tasks.list
+  events:
+    - http:
+        path: tasks
+        method: get
+        cors: true
+        authorizer: verify-token
+createTask:
+  handler: app/Handlers/Tasks.create
+  events:
+    - http:
+        path: task
+        method: post
+        cors: true
+        authorizer: verify-token

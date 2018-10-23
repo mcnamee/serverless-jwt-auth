@@ -9,7 +9,7 @@ const requestSchema = require('../Requests/Users');
 const validatorMiddleware = require('../Middleware/Validator');
 const apiResponseMiddleware = require('../Middleware/ApiResponse');
 const { signToken, userByEmail, userById } = require('../Helpers/Users');
-const TableName = process.env.TABLE_USERS;
+const TableName = process.env.TABLENAME_USERS;
 
 
 /**

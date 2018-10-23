@@ -7,32 +7,18 @@ plugins:
   - serverless-offline
 
 custom:
-  secrets: ${file(secrets.json)}
-  dynamodb:
-    start:
-      port: 8000
-      inMemory: true
-      migrate: true
-      seed: true
-    migration:
-      dir: database/migrations
-    seed:
-      test:
-        sources:
-          - table: ${self:provider.environment.TABLE_USERS}
-            sources: [database/seeds/users.json]
-          - table: ${self:provider.environment.TABLE_TASKS}
-            sources: [database/seeds/tasks.json]
+  env: ${file(env.${opt:STAGE, 'prod'}.yml), file(env.yml)}
+  dynamodb: ${file(config/dynamodb-offline.yml)}
 
 provider:
   name: aws
   runtime: nodejs8.10
-  stage: production
-  region: ap-southeast-2
+  stage: ${opt:STAGE, self:custom.env.STAGE}
+  region: ${self:custom.env.REGION}
   environment:
-    JWT_SECRET: ${self:custom.secrets.JWT_SECRET}
-    TABLE_USERS: ${self:service}-Users
-    TABLE_TASKS: ${self:service}-Tasks
+    JWT_SECRET: ${self:custom.env.JWT_SECRET}
+    TABLENAME_USERS: ${self:service}-${self:provider.stage}-users
+    TABLENAME_TASKS: ${self:service}-${self:provider.stage}-tasks
   iamRoleStatements:
   - Effect: Allow
     Action:
@@ -42,93 +28,15 @@ provider:
       - dynamodb:PutItem
       - dynamodb:UpdateItem
       - dynamodb:DeleteItem
-    Resource: 
-      - "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.TABLE_USERS}"
-      - "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.TABLE_TASKS}"
+    Resource:
+      # DynamoDB tables to provide access to
+      - "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.TABLENAME_USERS}"
+      - "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.TABLENAME_TASKS}"
+
+functions:
+  - ${file(routes/users.yml)}
+  - ${file(routes/tasks.yml)}
 
 resources:
   Resources:
-    UsersDynamoDbTable:
-      Type: 'AWS::DynamoDB::Table'
-      DeletionPolicy: Retain
-      Properties:
-        AttributeDefinitions:
-          - AttributeName: id
-            AttributeType: S
-        KeySchema:
-          - AttributeName: id
-            KeyType: HASH
-        ProvisionedThroughput:
-          ReadCapacityUnits: 1
-          WriteCapacityUnits: 1
-        TableName: ${self:provider.environment.TABLE_USERS}
-    TasksDynamoDbTable:
-      Type: 'AWS::DynamoDB::Table'
-      DeletionPolicy: Retain
-      Properties:
-        AttributeDefinitions:
-          - AttributeName: id
-            AttributeType: S
-        KeySchema:
-          - AttributeName: id
-            KeyType: HASH
-        ProvisionedThroughput:
-          ReadCapacityUnits: 1
-          WriteCapacityUnits: 1
-        TableName: ${self:provider.environment.TABLE_TASKS}
-
-functions:
-  verify-token:
-    handler: app/Middleware/VerifyToken.auth
-
-  login:
-    handler: app/Handlers/Users.login
-    events:
-      - http:
-          path: login
-          method: post
-          cors: true
-
-  register:
-    handler: app/Handlers/Users.register
-    events:
-      - http:
-          path: register
-          method: post
-          cors: true
-
-  user:
-    handler: app/Handlers/Users.user
-    events:
-      - http:
-          path: user
-          method: get
-          cors: true
-          authorizer: verify-token
-
-  userUpdate:
-    handler: app/Handlers/Users.update
-    events:
-      - http:
-          path: user
-          method: put
-          cors: true
-          authorizer: verify-token
-
-  getTasks:
-    handler: app/Handlers/Tasks.list
-    events:
-      - http:
-          path: tasks
-          method: get
-          cors: true
-          authorizer: verify-token
-
-  createTask:
-    handler: app/Handlers/Tasks.create
-    events:
-      - http:
-          path: task
-          method: post
-          cors: true
-          authorizer: verify-token
+    - ${file(config/dynamodb.yml)}

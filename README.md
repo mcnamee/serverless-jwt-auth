@@ -23,8 +23,8 @@ git clone https://github.com/mcnamee/serverless-jwt-auth.git serverless-jwt-auth
 # Install dependencies
 cd serverless-jwt-auth && yarn install
 
-# Add your secrets (and update the JWT secret)
-cp secrets.example.json secrets.json
+# Add your environment variables (and update the JWT secret)
+cp env.example.yml env.prod.yml
 ```
 
 ---
@@ -37,6 +37,9 @@ You can use Serverless Offline while you develop, which starts a local DynamoDB 
 
 ```bash
 yarn start
+
+# OR to use env.staging.yml environment variables:
+# yarn start --STAGE staging
 ```
 
 ### Tests
@@ -59,6 +62,9 @@ __2. Then deploy to AWS__
 
 ```bash
 sls deploy
+
+# OR to use env.dev.yml environment variables:
+# sls deploy --STAGE dev
 ```
 
 ---

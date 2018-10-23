@@ -1,0 +1,15 @@
+#
+# Sets up the configuration for offline DynamoDB
+#
+start:
+  port: 8000
+  inMemory: true
+  migrate: true
+  seed: true
+seed:
+  test:
+    sources:
+      - table: ${self:provider.environment.TABLENAME_USERS}
+        sources: [database/seeds/users.json]
+      - table: ${self:provider.environment.TABLENAME_TASKS}
+        sources: [database/seeds/tasks.json]

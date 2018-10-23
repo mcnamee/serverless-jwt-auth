@@ -1,12 +1,15 @@
 # package directories
 node_modules
 jspm_packages
+.vscode
 
 # Serverless directories
 .serverless
 
 # Secrets
-secrets.json
+env.yml
+env.*.yml
+!env.example.yml
 
 # DB
 .dynamodb

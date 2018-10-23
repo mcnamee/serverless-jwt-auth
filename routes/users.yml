@@ -1,0 +1,32 @@
+verify-token:
+  handler: app/Middleware/VerifyToken.auth
+login:
+  handler: app/Handlers/Users.login
+  events:
+    - http:
+        path: login
+        method: post
+        cors: true
+register:
+  handler: app/Handlers/Users.register
+  events:
+    - http:
+        path: register
+        method: post
+        cors: true
+user:
+  handler: app/Handlers/Users.user
+  events:
+    - http:
+        path: user
+        method: get
+        cors: true
+        authorizer: verify-token
+userUpdate:
+  handler: app/Handlers/Users.update
+  events:
+    - http:
+        path: user
+        method: put
+        cors: true
+        authorizer: verify-token

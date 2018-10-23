@@ -18,7 +18,7 @@ module.exports.auth = (event, context, callback) => {
 
     // Check whether user ID is legit in the DB
     return DB.get({
-      TableName:process.env.TABLE_USERS,
+      TableName:process.env.TABLENAME_USERS,
       Key: { id: decoded.id }
     }).promise().then((res) => {
       // If the user id exists in the db, save to request for use in other routes

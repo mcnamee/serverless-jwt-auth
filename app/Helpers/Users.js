@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const sanitizer = require('validator');
 
 const DB = require('../../db');
-const TableName = process.env.TABLE_USERS;
+const TableName = process.env.TABLENAME_USERS;
 
 
 /**

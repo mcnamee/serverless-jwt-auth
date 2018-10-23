@@ -1,4 +1,4 @@
-const register = {
+module.exports.register = {
   type: 'object',
   properties: {
     body: {
@@ -14,7 +14,7 @@ const register = {
   }
 }
 
-const login = {
+module.exports.login = {
   type: 'object',
   properties: {
     body: {
@@ -28,7 +28,7 @@ const login = {
   }
 }
 
-const update = {
+module.exports.update = {
   type: 'object',
   properties: {
     body: {
@@ -43,5 +43,3 @@ const update = {
     }
   }
 }
-
-module.exports = { register, login, update };

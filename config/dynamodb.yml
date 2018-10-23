@@ -1,0 +1,34 @@
+#
+# Creates the DynamoDB tables
+#
+# Setup Users Table
+UsersDynamoDbTable:
+  Type: 'AWS::DynamoDB::Table'
+  DeletionPolicy: Retain
+  Properties:
+    TableName: ${self:provider.environment.TABLENAME_USERS}
+    AttributeDefinitions:
+      - AttributeName: id
+        AttributeType: S
+    KeySchema:
+      - AttributeName: id
+        KeyType: HASH
+    ProvisionedThroughput:
+      ReadCapacityUnits: 1
+      WriteCapacityUnits: 1
+
+# Setup Tasks Table
+TasksDynamoDbTable:
+  Type: 'AWS::DynamoDB::Table'
+  DeletionPolicy: Retain
+  Properties:
+    TableName: ${self:provider.environment.TABLENAME_TASKS}
+    AttributeDefinitions:
+      - AttributeName: id
+        AttributeType: S
+    KeySchema:
+      - AttributeName: id
+        KeyType: HASH
+    ProvisionedThroughput:
+      ReadCapacityUnits: 1
+      WriteCapacityUnits: 1
